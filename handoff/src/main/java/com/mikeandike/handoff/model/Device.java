@@ -1,9 +1,16 @@
 package com.mikeandike.handoff.model;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.InputStream;
+import java.util.Properties;
+import java.io.OutputStream;
+
+import java.io.IOException;
 
 public record Device(
     @Schema(description = "The alias of the device", requiredMode = Schema.RequiredMode.REQUIRED) String alias,
@@ -45,9 +52,6 @@ public record Device(
         if (number == 0) {
             throw new IllegalArgumentException("Number cannot be zero");
         }
-
-        alias = generateAlias();
-        number = generateNumber();
     }
 
     public static int generateNumber() {
@@ -60,8 +64,47 @@ public record Device(
     }
 
     public static Device generateDevice() {
-        String alias = generateAlias();
-        int number = generateNumber();
+        // Check if we already have a device name in a local config file, if so, use that name. 
+        // Otherwise, generate a new name and save it to the config file.
+        Path configPath = Path.of(System.getProperty("user.home"), ".handoff", "config_properties");
+
+        String alias;
+        int number;
+
+        System.out.println("CHECK: " + configPath.toAbsolutePath() + " exists=" + Files.exists(configPath));
+
+        // Write to the path
+        if (Files.exists(configPath)){
+            System.out.println("Config file exists, loading config...");
+            // load config
+            Properties props = new Properties();
+            try (InputStream in = Files.newInputStream(configPath)){
+                props.load(in);
+            } catch (Exception e){
+                throw new RuntimeException("Failed to load config file", e);
+            }
+            alias = props.getProperty("alias");
+            number = Integer.parseInt(props.getProperty("deviceId"));
+        } else{
+            //generate new config
+            alias = generateAlias();
+            number = generateNumber();
+
+            try {
+                Files.createDirectories(configPath.getParent());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create config directory", e);
+            }
+            Properties props = new Properties();
+            props.setProperty("alias", alias);
+            props.setProperty("deviceId", String.valueOf(number));
+            try (OutputStream out = Files.newOutputStream(configPath)){
+                props.store(out, "Handoff Device Config");
+            } catch (Exception e){
+                throw new RuntimeException("Failed to save config file", e);
+            }
+        }
+
         return new Device(alias, number, null, null);
     }
 

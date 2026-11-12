@@ -11,10 +11,13 @@ import com.mikeandike.handoff.dto.ListResponse;
 import com.mikeandike.handoff.dto.DeviceInfo;
 import com.mikeandike.handoff.model.Device;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 @RestController
 @RequestMapping(value="/api/identity", produces=MediaType.APPLICATION_JSON_VALUE)
 public class DeviceController {
 
+    @Operation (summary = "Get device identity", description = "Returns the device identity information, including alias and number")
     @GetMapping
     public ListResponse<DeviceInfo> getDeviceIdentity() {
         // Create a new Device
