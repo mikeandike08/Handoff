@@ -66,7 +66,7 @@ public record Device(
     public static Device generateDevice() {
         // Check if we already have a device name in a local config file, if so, use that name. 
         // Otherwise, generate a new name and save it to the config file.
-        Path configPath = Path.of(System.getProperty("user.home"), ".handoff", "config_properties");
+        Path configPath = Path.of(System.getProperty("user.home"), ".handoff", "config.properties");
 
         String alias;
         int number;
