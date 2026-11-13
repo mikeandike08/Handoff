@@ -17,7 +17,8 @@ Delete the config file to get a new alias.
 
 Defaults to 8080. Override with the `HANDOFF_PORT` environment variable:
 
-    HANDOFF_PORT=8081 cd handoff ./mvnw spring-boot:run
+    cd handoff
+    HANDOFF_PORT=8081 ./mvnw spring-boot:run
 
 Each device runs its own instance, so the port only needs to be unique per
 machine — two devices on the same network can both use 8080.
