@@ -1,16 +1,15 @@
 package com.mikeandike.handoff.model;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Properties;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.io.InputStream;
-import java.util.Properties;
-import java.io.OutputStream;
-
-import java.io.IOException;
 
 public record Device(
     @Schema(description = "The alias of the device", requiredMode = Schema.RequiredMode.REQUIRED) String alias,
@@ -124,6 +123,15 @@ public record Device(
         }
 
         return new Device(alias, number, id, null, null);
+    }
+
+    /**
+     * Used to get our machines local ID value set when we first created the device
+     * @return String | ""
+     */
+    public static String getIDFromLocal(){
+        Properties props = new Properties();
+        return props.getProperty("id", "");
     }
 
     /**
