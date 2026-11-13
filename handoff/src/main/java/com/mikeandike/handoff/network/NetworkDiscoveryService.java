@@ -15,10 +15,10 @@ public class NetworkDiscoveryService {
     private final NetworkListener listener;
     private final MultiDeviceDiscovery discovery;
 
-    public NetworkDiscoveryService(){
-        this.broadcaster = new NetworkBroadcaster();
-        this.listener = new NetworkListener();
-        this.discovery = new MultiDeviceDiscovery();
+    public NetworkDiscoveryService(NetworkBroadcaster nb, NetworkListener nl, MultiDeviceDiscovery mdd){
+        this.broadcaster = nb;
+        this.listener = nl;
+        this.discovery = mdd;
     }
 
     public List<DeviceInfo> getDiscoveredDevices(){

@@ -6,13 +6,22 @@ import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 
+import org.springframework.stereotype.Component;
+
+@Component 
 public class NetworkListener {
+    private final MultiDeviceDiscovery multiDD;
+
     // TODO: add these to an environment variable at some point
     private static final String MULTICAST_ADDRESS = "239.255.1.1";
     private static final int PORT = 4445;
 
     private Thread listenerThread;
     private MulticastSocket socket;
+
+    public NetworkListener(MultiDeviceDiscovery multiDD){
+        this.multiDD = multiDD;
+    }
 
     public void startListening(){
         listenerThread = new Thread(() -> {
@@ -30,7 +39,7 @@ public class NetworkListener {
                     socket.receive(packet);
 
                     // Handle conversion of packet payload to whatever data type we choose
-                    MultiDeviceDiscovery.handleIncomingPacket(packet); // Parse's JSON, skip self, and update list of all active devices
+                    multiDD.handleIncomingPacket(packet); // Parse's JSON, skip self, and update list of all active devices
                 }
 
                 if (!socket.isClosed()){

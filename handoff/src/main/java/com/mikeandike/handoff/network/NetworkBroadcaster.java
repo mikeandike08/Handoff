@@ -7,15 +7,25 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.stereotype.Component;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mikeandike.handoff.dto.DeviceInfo;
 import com.mikeandike.handoff.model.Device;
+import com.mikeandike.handoff.model.DeviceStore;
 
+@Component 
 public class NetworkBroadcaster {
+    private final DeviceStore deviceStore;
+
     private static final String MULTICAST_ADDRESS = "239.255.1.1";
     private static final int PORT = 4445;
 
     private ScheduledExecutorService scheduler;
+
+    public NetworkBroadcaster(DeviceStore deviceStore){
+        this.deviceStore = deviceStore;
+    }
 
     public void startBroadcasting(){
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -29,7 +39,7 @@ public class NetworkBroadcaster {
                 InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
 
                 // Create a new Device
-                Device _device = Device.generateDevice();
+                Device _device = deviceStore.loadOrCreateDevice();
 
                 // Create a deviceInfo object with the alias and number of the device
                 DeviceInfo _deviceInfo = DeviceInfo.from(_device);
@@ -41,7 +51,6 @@ public class NetworkBroadcaster {
                     byte[] buffer = mapper.writeValueAsBytes(_deviceInfo);
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length, group, PORT);
                     socket.send(packet);
-                    System.out.println("Broadcasting presence");
                     Thread.sleep(1500); // broadcast every 1.5 seconds
                 }
             } catch (Exception e){

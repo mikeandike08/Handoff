@@ -5,14 +5,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.stereotype.Component;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mikeandike.handoff.dto.DeviceInfo;
-import com.mikeandike.handoff.model.Device;
+import com.mikeandike.handoff.model.DeviceStore;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+@Component
 public class MultiDeviceDiscovery {
-    private static final String MY_DEVICE_ID = Device.getIDFromLocal();
+    private final DeviceStore deviceStore;
+
+    private final String MY_DEVICE_ID;
     private static final ObjectMapper mapper = new ObjectMapper();
 
     private static final long PEER_TIMEOUT_MS = 6000; // Expire after 6 seconds
@@ -22,7 +27,12 @@ public class MultiDeviceDiscovery {
 
     public record PeerInfo(@Schema(description="DeviceInfo Object")DeviceInfo info, @Schema(description="Last seen in ms")long lastSeenMs){}
 
-    public static void handleIncomingPacket(DatagramPacket packet) {
+    public MultiDeviceDiscovery(DeviceStore deviceStore){
+        this.deviceStore = deviceStore;
+        this.MY_DEVICE_ID = deviceStore.getIDFromLocal();
+    }
+
+    public void handleIncomingPacket(DatagramPacket packet) {
         try {
             DeviceInfo _deviceInfo = mapper.readValue(packet.getData(), 0, packet.getLength(), DeviceInfo.class);
 
