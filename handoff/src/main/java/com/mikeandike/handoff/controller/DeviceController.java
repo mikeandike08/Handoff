@@ -19,12 +19,12 @@ public class DeviceController {
 
     @Operation (summary = "Get device identity", description = "Returns the device identity information, including alias and number")
     @GetMapping
-    public ListResponse<DeviceInfo> getDeviceIdentity() {
+    public DeviceInfo getDeviceIdentity() {
         // Create a new Device
         Device _device = Device.generateDevice();
 
         // Create a deviceInfo object with the alias and number of the device
-        DeviceInfo deviceInfo = DeviceInfo.from(_device);
-        return new ListResponse<>(List.of(deviceInfo));
+        DeviceInfo _deviceInfo = DeviceInfo.from(_device);
+        return _deviceInfo;
     }
 }
