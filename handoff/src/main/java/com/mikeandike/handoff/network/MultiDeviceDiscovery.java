@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mikeandike.handoff.dto.DeviceAnnouncement;
 import com.mikeandike.handoff.dto.DeviceInfo;
 import com.mikeandike.handoff.model.DeviceStore;
 
@@ -25,7 +26,7 @@ public class MultiDeviceDiscovery {
     // Thread-safe registry of all active peers on the LAN
     private static final Map<String, PeerInfo> activePeers = new ConcurrentHashMap<>();
 
-    public record PeerInfo(@Schema(description="DeviceInfo Object")DeviceInfo info, @Schema(description="Last seen in ms")long lastSeenMs){}
+    public record PeerInfo(@Schema(description="DeviceInfo Object")DeviceInfo info, @Schema(description="Last seen in ms")long lastSeenMs, @Schema(description="IP of peer")String ip, @Schema(description="Port of peer")int port){}
 
     public MultiDeviceDiscovery(DeviceStore deviceStore){
         this.deviceStore = deviceStore;
@@ -34,16 +35,16 @@ public class MultiDeviceDiscovery {
 
     public void handleIncomingPacket(DatagramPacket packet) {
         try {
-            DeviceInfo _deviceInfo = mapper.readValue(packet.getData(), 0, packet.getLength(), DeviceInfo.class);
+            DeviceAnnouncement ann = mapper.readValue(packet.getData(), 0, packet.getLength(), DeviceAnnouncement.class);
 
             // Verify that this is not our own broadcast
-            if(MY_DEVICE_ID.equals(_deviceInfo.id())){
+            if(MY_DEVICE_ID.equals(ann.device().id())){
                 return;
             }
 
             // Add new device to list
-            //String senderIP = packet.getAddress().getHostAddress();
-            activePeers.put(_deviceInfo.id(), new PeerInfo(_deviceInfo, System.currentTimeMillis()));
+            String senderIP = packet.getAddress().getHostAddress();
+            activePeers.put(ann.device().id(), new PeerInfo(ann.device(), System.currentTimeMillis(), senderIP, ann.port()));
         } catch (Exception ignored) {
         }
     }
