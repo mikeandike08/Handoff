@@ -27,8 +27,7 @@ public class PeerController {
     @GetMapping
     public ListResponse<DeviceInfo> getNearbyDevices(){
         List<DeviceInfo> activeDevices = discoveryService.getDiscoveredDevices().stream()
-        .sorted(Comparator.comparing(DeviceInfo::alias, String.CASE_INSENSITIVE_ORDER))
-        .sorted(Comparator.comparing(DeviceInfo::number))
+        .sorted(Comparator.comparing(DeviceInfo::alias, String.CASE_INSENSITIVE_ORDER).thenComparingInt(DeviceInfo::number))
         .toList();
         return new ListResponse<>(activeDevices);
     }
