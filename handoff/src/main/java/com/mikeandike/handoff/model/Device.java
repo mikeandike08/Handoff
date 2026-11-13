@@ -60,6 +60,8 @@ public record Device(
         // Using SecureRandom to generate a random number for the device
         SecureRandom random = new SecureRandom();
         int randomInt = random.nextInt(5000); // Create a random number between 0 and 4999
+        if (randomInt == 0)
+            randomInt += 1; // 0 can cause a crash, keep it above 0
         return randomInt;
     }
 
