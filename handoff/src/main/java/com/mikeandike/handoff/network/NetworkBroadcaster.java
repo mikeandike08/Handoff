@@ -43,7 +43,7 @@ public class NetworkBroadcaster {
                 InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
 
                 // Create a new Device
-                Device _device = deviceStore.loadOrCreateDevice();
+                Device _device = deviceStore.getDevice();
 
                 // Create a deviceInfo object with the alias and number of the device
                 DeviceInfo _deviceInfo = DeviceInfo.from(_device);
