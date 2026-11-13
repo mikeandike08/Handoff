@@ -130,6 +130,7 @@ public record Device(
      * @return String | ""
      */
     public static String getIDFromLocal(){
+        generateDevice();
         Properties props = new Properties();
         try (InputStream in = Files.newInputStream(CONFIG_PATH)){
                 props.load(in);
