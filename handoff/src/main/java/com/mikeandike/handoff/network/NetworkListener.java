@@ -8,7 +8,7 @@ import java.net.NetworkInterface;
 
 public class NetworkListener {
     // TODO: add these to an environment variable at some point
-    private static final String MULTICAST_ADDRESS = "244.0.2.60";
+    private static final String MULTICAST_ADDRESS = "239.255.1.1";
     private static final int PORT = 4445;
 
     private Thread listenerThread;

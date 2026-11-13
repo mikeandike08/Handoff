@@ -12,7 +12,7 @@ import com.mikeandike.handoff.dto.DeviceInfo;
 import com.mikeandike.handoff.model.Device;
 
 public class NetworkBroadcaster {
-    private static final String MULTICAST_ADDRESS = "244.0.2.60";
+    private static final String MULTICAST_ADDRESS = "239.255.1.1";
     private static final int PORT = 4445;
 
     private ScheduledExecutorService scheduler;
