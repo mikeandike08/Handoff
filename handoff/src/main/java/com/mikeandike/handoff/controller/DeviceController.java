@@ -1,15 +1,13 @@
 package com.mikeandike.handoff.controller;
 
-import java.util.List;
-
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.mikeandike.handoff.dto.ListResponse;
 import com.mikeandike.handoff.dto.DeviceInfo;
 import com.mikeandike.handoff.model.Device;
+import com.mikeandike.handoff.model.DeviceStore;
 
 import io.swagger.v3.oas.annotations.Operation;
 
@@ -17,11 +15,17 @@ import io.swagger.v3.oas.annotations.Operation;
 @RequestMapping(value="/api/identity", produces=MediaType.APPLICATION_JSON_VALUE)
 public class DeviceController {
 
+    private final DeviceStore deviceStore;
+
+    public DeviceController(DeviceStore deviceStore){
+        this.deviceStore = deviceStore;
+    }
+
     @Operation (summary = "Get device identity", description = "Returns the device identity information, including alias and number")
     @GetMapping
     public DeviceInfo getDeviceIdentity() {
         // Create a new Device
-        Device _device = Device.generateDevice();
+        Device _device = deviceStore.getDevice();
 
         // Create a deviceInfo object with the alias and number of the device
         DeviceInfo _deviceInfo = DeviceInfo.from(_device);
