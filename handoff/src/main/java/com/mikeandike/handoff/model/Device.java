@@ -48,6 +48,8 @@ public record Device(
     // Used to create an alphanumeric ID
     private static final String CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 
+    private static final Path CONFIG_PATH = Path.of(System.getProperty("user.home"), ".handoff", "config.properties");
+
     public Device {
         if (alias == null || alias.isBlank()) {
             throw new IllegalArgumentException("Alias cannot be null or blank");
@@ -79,20 +81,18 @@ public record Device(
     public static Device generateDevice() {
         // Check if we already have a device name in a local config file, if so, use that name. 
         // Otherwise, generate a new name and save it to the config file.
-        Path configPath = Path.of(System.getProperty("user.home"), ".handoff", "config.properties");
-
         String alias;
         String id;
         int number;
 
-        System.out.println("CHECK: " + configPath.toAbsolutePath() + " exists=" + Files.exists(configPath));
+        System.out.println("CHECK: " + CONFIG_PATH.toAbsolutePath() + " exists=" + Files.exists(CONFIG_PATH));
 
         // Write to the path
-        if (Files.exists(configPath)){
+        if (Files.exists(CONFIG_PATH)){
             System.out.println("Config file exists, loading config...");
             // load config
             Properties props = new Properties();
-            try (InputStream in = Files.newInputStream(configPath)){
+            try (InputStream in = Files.newInputStream(CONFIG_PATH)){
                 props.load(in);
             } catch (Exception e){
                 throw new RuntimeException("Failed to load config file", e);
@@ -107,7 +107,7 @@ public record Device(
             id = generateID();
 
             try {
-                Files.createDirectories(configPath.getParent());
+                Files.createDirectories(CONFIG_PATH.getParent());
             } catch (IOException e) {
                 throw new RuntimeException("Failed to create config directory", e);
             }
@@ -115,7 +115,7 @@ public record Device(
             props.setProperty("alias", alias);
             props.setProperty("number", String.valueOf(number));
             props.setProperty("id", id);
-            try (OutputStream out = Files.newOutputStream(configPath)){
+            try (OutputStream out = Files.newOutputStream(CONFIG_PATH)){
                 props.store(out, "Handoff Device Config");
             } catch (Exception e){
                 throw new RuntimeException("Failed to save config file", e);
@@ -131,6 +131,11 @@ public record Device(
      */
     public static String getIDFromLocal(){
         Properties props = new Properties();
+        try (InputStream in = Files.newInputStream(CONFIG_PATH)){
+                props.load(in);
+            } catch (Exception e){
+                throw new RuntimeException("Failed to load config file", e);
+            }
         return props.getProperty("id", "");
     }
 
