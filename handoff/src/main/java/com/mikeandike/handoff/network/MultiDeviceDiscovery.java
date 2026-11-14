@@ -61,6 +61,18 @@ public class MultiDeviceDiscovery {
         return List.copyOf(activePeers.values());
     }
 
+    /**
+     * Gets an active peer based of ID, returns their info which includes IP and Port
+     * @return PeerInfo
+     */
+    public PeerInfo getPeerInfo(String id){
+        PeerInfo info = activePeers.get(id);
+        if (info == null){
+            return null;
+        }
+        return info;
+    }
+
     public List<DeviceInfo> getActiveDevices(){
         return getActivePeers().stream().map(PeerInfo::info).toList();
     }
