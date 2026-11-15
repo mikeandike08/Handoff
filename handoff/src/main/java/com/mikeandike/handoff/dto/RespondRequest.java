@@ -1,3 +1,4 @@
 package com.mikeandike.handoff.dto;
 
-public record RespondRequest(boolean accepted) {}
+// Boxed Boolean so {} is rejected instead of silently meaning "decline"
+public record RespondRequest(Boolean accepted) {}

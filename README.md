@@ -40,7 +40,8 @@ Called by the frontend:
 
 | Method | Endpoint                             | Body                                      | Description                                        |
 |--------|--------------------------------------|-------------------------------------------|----------------------------------------------------|
-| POST   | `/api/transfer/start`                | JSON `{ deviceId, fileName, fileSize }`   | Offer a file to a peer. Waits for the decision     |
+| POST   | `/api/transfer/start`                | JSON `{ deviceId, fileName, fileSize }`   | Offer a file to a peer. Returns right away in `PENDING` |
+| GET    | `/api/transfer`                      | –                                         | All transfers this device knows about, newest first |
 | GET    | `/api/transfer/incoming`             | –                                         | Offers waiting for this user's decision (poll this) |
 | POST   | `/api/transfer/{transferId}/respond` | JSON `{ accepted }`                       | Accept or decline an incoming offer                |
 | POST   | `/api/transfer/{transferId}/send`    | multipart `file`                          | Upload the file for an accepted outgoing transfer  |
@@ -58,13 +59,20 @@ Transfer endpoints return a `TransferView`:
     {
       "transferId": "3f2b…",
       "peerDeviceId": "a8k2xq",
+      "peerAlias": "Soggy Waffle",
+      "peerNumber": 4070,
       "fileName": "photo.jpg",
       "fileSize": 204800,
-      "state": "ACCEPTED",
+      "state": "FAILED",
       "bytesTransferred": 0,
       "outgoing": true,
+      "error": "Soggy Waffle went offline",
       "createdAt": "2026-11-14T15:02:11Z"
     }
+
+`peerAlias` and `peerNumber` are the other device's name, so an incoming offer can show who it's
+from without looking it up in `/api/devices`. `error` explains a `FAILED`, `EXPIRED` or
+automatically `DECLINED` transfer, and is `null` otherwise.
 
 ### Errors
 
@@ -74,10 +82,13 @@ All errors use the same shape:
 
 | Status | When                                                                                      |
 |--------|-------------------------------------------------------------------------------------------|
+| 400    | Invalid input: missing or invalid JSON, a missing field, a missing `file` part, or a file whose size doesn't match the offer. `message` says what's wrong |
 | 404    | Unknown endpoint or transfer ID, or the peer is no longer on the network                  |
 | 405    | Wrong HTTP method for the endpoint                                                        |
-| 409    | Transfer isn't in the right state (e.g. `/send` before it was accepted, or `/respond` after the offer timed out or was answered) |
-| 502    | The peer couldn't be reached or rejected the upload                                       |
+| 409    | Transfer isn't in the right state (e.g. `/send` before it was accepted, or `/respond` after the offer expired or was answered) |
+| 413    | `fileSize` is over the 10 GB limit (checked at `/start`, before the receiver sees the offer) |
+| 415    | Wrong or missing `Content-Type` (JSON endpoints need `application/json`, `/send` needs `multipart/form-data`) |
+| 502    | The peer couldn't be reached or rejected the upload. The transfer is marked `FAILED`     |
 | 500    | Unexpected error on this device                                                           |
 
 ## Device identity
@@ -111,14 +122,19 @@ Some guest or corporate Wi-Fi networks block it.
 A transfer takes two steps: the sender asks permission, then uploads the file once the receiver accepts.
 
 1. **Sender UI** calls `POST /api/transfer/start` with the peer's `id`, the file name and size.
-   The sender's backend forwards the offer to the peer and **waits up to 60 seconds** for an answer.
+   It returns right away with the transfer in `PENDING`, and the offer is sent to the peer in the background.
 2. **Receiver UI** polls `GET /api/transfer/incoming`, shows the offer to the user, and calls
    `POST /api/transfer/{transferId}/respond` with `{ "accepted": true }` or `false`.
-3. The sender's `/start` call returns with state `ACCEPTED`, `DECLINED` or `FAILED`.
-   No answer within 60 seconds counts as `DECLINED`.
+   The receiver has 60 seconds to answer.
+3. **Sender UI** polls `GET /api/transfer/{transferId}/status` until the state becomes `ACCEPTED`,
+   `DECLINED`, `EXPIRED` (no answer within 60 seconds) or `FAILED`.
 4. If accepted, **sender UI** calls `POST /api/transfer/{transferId}/send` with the file as multipart
-   field `file`. The sender's backend streams it to the peer, which saves it to its download folder.
+   field `file`. Its size must match the `fileSize` sent to `/start`. The sender's backend streams the
+   file to the peer, which saves it to its download folder.
 5. Either side can check progress with `GET /api/transfer/{transferId}/status`.
+
+After a page refresh, `GET /api/transfer` lists every transfer this device still knows about, so the UI
+can pick up where it left off.
 
 ### Transfer states
 
@@ -128,12 +144,13 @@ A transfer takes two steps: the sender asks permission, then uploads the file on
 | `ACCEPTED`     | Accepted, file not sent yet                     |
 | `TRANSFERRING` | File is being sent                              |
 | `COMPLETE`     | File was saved on the receiver                  |
-| `DECLINED`     | Receiver said no, or didn't answer within 60s   |
-| `FAILED`       | Something went wrong, such as the peer being unreachable |
+| `DECLINED`     | Receiver said no, or the offer was rejected automatically (`error` says why) |
+| `EXPIRED`      | Receiver didn't answer within 60 seconds        |
+| `FAILED`       | Something went wrong, such as the peer going offline (`error` says what) |
 
 Transfers are kept in memory only and are cleared on restart. Finished transfers
-(`COMPLETE`, `DECLINED`, `FAILED`) are removed 5 minutes after they were created, and any
-transfer still open after 1 hour is removed too.
+(`COMPLETE`, `DECLINED`, `EXPIRED`, `FAILED`) are removed 5 minutes after they finish.
+An `ACCEPTED` transfer whose file is never sent is marked `FAILED` after 10 minutes.
 
 ### Received files
 
@@ -142,8 +159,10 @@ The sender's file name is cleaned before saving:
 - Directory parts are removed, so `../../notes.txt` becomes `notes.txt`.
 - Names like `.`, `..` or a blank name become `untitled`.
 
-A file with the same name as one already in the folder **replaces** it.
-The maximum file size is 10GB.
+Existing files are never overwritten. If `report.zip` already exists, the new file is saved as
+`report (1).zip`, then `report (2).zip`, and so on.
+
+The maximum file size is 10 GB. Larger offers are rejected at `/start` with a `413`.
 
 ## Configuration
 
@@ -179,4 +198,5 @@ CORS is open to `http://localhost:5173` (the Vite dev server) by default. Change
 - One file per transfer.
 - `bytesTransferred` only updates when a transfer finishes, so there's no live progress bar yet.
 - Transfer history is lost when the app restarts.
-- Received files with the same name overwrite each other.
+- Both devices need the same version of Handoff. The device-to-device messages changed in this
+  version, so an older build can't send to or receive from a newer one.

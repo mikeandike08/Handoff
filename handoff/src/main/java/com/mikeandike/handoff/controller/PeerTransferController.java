@@ -28,10 +28,9 @@ public class PeerTransferController {
     @Operation(summary = "Receive a transfer offer from another device",
         description="Called by a peer's backend, not by a browser. Blocks until this device's user responds or 60 seconds pass, then returns the decision to the caller."
     )
-    @PostMapping("/request")
+    @PostMapping(value = "/request", consumes = MediaType.APPLICATION_JSON_VALUE)
     public TransferDecision request(@RequestBody TransferRequest body){
-        boolean accepted = transferService.awaitDecision(body);
-        return new TransferDecision(accepted);
+        return transferService.awaitDecision(body);
     }
 
     @Operation(

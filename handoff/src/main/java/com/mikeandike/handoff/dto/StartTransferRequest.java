@@ -1,3 +1,4 @@
 package com.mikeandike.handoff.dto;
 
-public record StartTransferRequest(String deviceId, String fileName, long fileSize){}
+// Boxed Long so a missing fileSize can be told apart from 0
+public record StartTransferRequest(String deviceId, String fileName, Long fileSize){}
