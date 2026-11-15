@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.mikeandike.handoff.dto.IncomingTransfer;
 import com.mikeandike.handoff.dto.ListResponse;
 import com.mikeandike.handoff.dto.RespondRequest;
 import com.mikeandike.handoff.dto.StartTransferRequest;
 import com.mikeandike.handoff.dto.TransferStatus;
+import com.mikeandike.handoff.dto.TransferView;
 import com.mikeandike.handoff.service.TransferService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,12 +37,17 @@ public class TransferController {
          return transferService.requestPermission(body.deviceId(), body.fileName(), body.fileSize());
     }
 
+    @GetMapping(value="/{id}/status")
+    public TransferView transferStatus(@PathVariable String transferId){
+        return transferService.getTransfer(transferId);
+    }
+
     @Operation(
         summary = "List transfers awaiting this user's decision",
         description = "Called by this device's UI, typically polled. Returns transfers other devices have offered that this user has not yet accepted or declined."
     )
     @GetMapping(value="/incoming")
-    public ListResponse<IncomingTransfer> incoming(){
+    public ListResponse<TransferView> incoming(){
         return new ListResponse<>(transferService.getPendingIncoming());
     }
 
