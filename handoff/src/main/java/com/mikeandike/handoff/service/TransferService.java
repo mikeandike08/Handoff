@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -56,10 +55,6 @@ public class TransferService {
         this.restClient = RestClient.create();
         this.downloadDir = Path.of(downloadDir);
     }
-
-    public record PendingTransfer(
-        TransferRequest request, String createdAt, CompletableFuture<Boolean> decision
-    ){}
 
     // --- Sending side ----
 
