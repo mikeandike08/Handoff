@@ -13,7 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.mikeandike.handoff.dto.ListResponse;
 import com.mikeandike.handoff.dto.RespondRequest;
 import com.mikeandike.handoff.dto.StartTransferRequest;
-import com.mikeandike.handoff.dto.TransferStatus;
 import com.mikeandike.handoff.dto.TransferView;
 import com.mikeandike.handoff.service.TransferService;
 
@@ -33,11 +32,11 @@ public class TransferController {
 
     @Operation(summary="Ask a peer to accept a file", description="Blocks until the peer responds or times out")
     @PostMapping(value="/start", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
-    public TransferStatus startTransfer(@RequestBody StartTransferRequest body){
+    public TransferView startTransfer(@RequestBody StartTransferRequest body){
          return transferService.requestPermission(body.deviceId(), body.fileName(), body.fileSize());
     }
 
-    @GetMapping(value="/{id}/status")
+    @GetMapping(value="/{transferId}/status")
     public TransferView transferStatus(@PathVariable String transferId){
         return transferService.getTransfer(transferId);
     }

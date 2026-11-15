@@ -27,7 +27,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.mikeandike.handoff.dto.TransferDecision;
 import com.mikeandike.handoff.dto.TransferRequest;
-import com.mikeandike.handoff.dto.TransferStatus;
 import com.mikeandike.handoff.dto.TransferView;
 import com.mikeandike.handoff.model.DeviceStore;
 import com.mikeandike.handoff.model.Transfer;
@@ -62,7 +61,7 @@ public class TransferService {
 
     // --- Sending side ----
 
-    public TransferStatus requestPermission(String toDeviceId, String fileName, long fileSize){
+    public TransferView requestPermission(String toDeviceId, String fileName, long fileSize){
         PeerInfo peer = requirePeer(toDeviceId);
 
         String transferId = UUID.randomUUID().toString();
@@ -89,12 +88,12 @@ public class TransferService {
             .body(TransferDecision.class);
         } catch (Exception e) {
             transfer.setState(TransferState.FAILED);
-            return toStatus(transfer);
+            return toView(transfer);
         }
         
         boolean accepted = response != null && response.accepted();
         transfer.setState(accepted ? TransferState.ACCEPTED : TransferState.DECLINED);
-        return toStatus(transfer);
+        return toView(transfer);
     }
 
     public void sendFile(String transferId, MultipartFile file){
@@ -203,11 +202,6 @@ public class TransferService {
         return new TransferView(t.getTransferId(), t.getPeerDeviceId(), t.getFileName(),
             t.getFileSize(), t.getState().name(), t.getBytesTransferred(),
             t.getOutgoing(), t.getCreatedAt());
-    }
-
-    private TransferStatus toStatus(Transfer t){
-        return new TransferStatus(t.getTransferId(), t.getPeerDeviceId(), t.getFileName(),
-                t.getFileSize(), t.getState().name(), t.getCreatedAt());
     }
 
     private PeerInfo requirePeer(String deviceId){
