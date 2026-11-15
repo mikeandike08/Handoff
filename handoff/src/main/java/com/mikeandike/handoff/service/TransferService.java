@@ -153,7 +153,7 @@ public class TransferService {
     public void respond(String transferId, boolean accepted) {
         Transfer transfer = transfers.get(transferId);
         if (transfer == null) throw new NotFoundException("Unknown transfer: " + transferId);
-        if (transfer.getState() != TransferState.PENDING) throw new IllegalStateException("The transfer: " + transferId + " has expired");
+        if (transfer.getState() != TransferState.PENDING) throw new IllegalStateException("Transfer is no longer pending: " + transferId);
         transfer.getDecision().complete(accepted);
     }
 
@@ -211,9 +211,22 @@ public class TransferService {
         return peer;
     }
 
+    /**
+     * Turns a sender-supplied file name into something safe to write inside downloadDir.
+     * Strips any directory parts (both / and \), and falls back to "untitled" for names
+     * that would point at a directory instead of a file (".", "..", "/", blank).
+     */
     private String safeName(String name) {
-        if (name == null || name.isBlank()) return "untitled";
-        return Path.of(name).getFileName().toString();
+        if (name == null) return "untitled";
+
+        // Keep only the last segment, treating both separators as path breaks on every OS
+        String base = name.substring(Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\')) + 1);
+
+        // Drop control characters (including NUL, which makes Path.of throw)
+        base = base.replaceAll("\\p{Cntrl}", "").strip();
+
+        if (base.isEmpty() || base.equals(".") || base.equals("..")) return "untitled";
+        return base;
     }
 
     private String peerUrl(PeerInfo peer, String path) {
