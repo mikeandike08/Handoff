@@ -28,9 +28,23 @@ public class GlobalExceptionHandler {
                                         .body(ErrorResponse.of("No endpoint at /" + ex.getResourcePath(), HttpStatus.NOT_FOUND));
     }
 
-    @ExceptionHandler(IllegalStateException.class)
-    public ErrorResponse handleIllegalState(IllegalStateException ex){
+    @ExceptionHandler(NotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleMissing(NotFoundException ex){
         return ErrorResponse.of(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleIllegalState(IllegalStateException ex){
+        return ErrorResponse.of(ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(PeerUnavailableException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public ErrorResponse handlePeerUnavailable(PeerUnavailableException ex){
+        log.warn("Peer request failed: {}", ex.getMessage(), ex.getCause());
+        return ErrorResponse.of(ex.getMessage(), HttpStatus.BAD_GATEWAY);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

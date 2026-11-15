@@ -1,6 +1,5 @@
 package com.mikeandike.handoff.service;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,11 +22,14 @@ import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.mikeandike.handoff.dto.TransferDecision;
 import com.mikeandike.handoff.dto.TransferRequest;
 import com.mikeandike.handoff.dto.TransferView;
+import com.mikeandike.handoff.exceptions.NotFoundException;
+import com.mikeandike.handoff.exceptions.PeerUnavailableException;
 import com.mikeandike.handoff.model.DeviceStore;
 import com.mikeandike.handoff.model.Transfer;
 import com.mikeandike.handoff.model.TransferState;
@@ -48,7 +50,7 @@ public class TransferService {
 
     public TransferService(MultiDeviceDiscovery discovery, 
                             DeviceStore deviceStore, 
-                            @Value("${handoff.download-dir") String downloadDir){
+                            @Value("${handoff.download-dir}") String downloadDir){
         this.discovery = discovery;
         this.deviceStore = deviceStore;
         this.restClient = RestClient.create();
@@ -77,7 +79,7 @@ public class TransferService {
         );
 
         // http://{ip}:{port}/api/transfer/request
-        String url = "http://" + peer.ip() + ":" + peer.port() + "/api/transfer/request";
+        String url = "http://" + peer.ip() + ":" + peer.port() + "/api/peer/transfer/request";
 
         TransferDecision response;
         try {
@@ -98,20 +100,19 @@ public class TransferService {
 
     public void sendFile(String transferId, MultipartFile file){
         Transfer transfer = requireAccepted(transferId);
+        PeerInfo peer = requirePeer(transfer.getPeerDeviceId());
 
         transfer.setState(TransferState.TRANSFERRING);
 
-        PeerInfo peer = requirePeer(transfer.getPeerDeviceId());
-
-        MultipartBodyBuilder builder = new MultipartBodyBuilder();
         try {
+            MultipartBodyBuilder builder = new MultipartBodyBuilder();
             builder.part("file", new InputStreamResource(file.getInputStream()) {
                 @Override public String getFilename() { return file.getOriginalFilename(); }
                 @Override public long contentLength() { return file.getSize(); }
             });
 
-             restClient.post()
-                .uri(peerUrl(peer, "/api/peer/transfer" + transferId + "/upload"))
+            restClient.post()
+                .uri(peerUrl(peer, "/api/peer/transfer/" + transferId + "/upload"))
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(builder.build())
                 .retrieve()
@@ -119,9 +120,14 @@ public class TransferService {
 
             transfer.addBytes(file.getSize());
             transfer.setState(TransferState.COMPLETE);
-        } catch (IOException e) {
+        } catch (RestClientException e) {
+            // The peer couldn't be reached, timed out, or rejected the upload
             transfer.setState(TransferState.FAILED);
-            throw new RuntimeException("Could not read upload", e);
+            throw new PeerUnavailableException("Could not send file to peer " + peer.info().alias(), e);
+        } catch (Exception e) {
+            // Something went wrong on our side (e.g. reading the uploaded file)
+            transfer.setState(TransferState.FAILED);
+            throw new RuntimeException("Failed to send file to peer", e);
         }
     }
 
@@ -151,9 +157,9 @@ public class TransferService {
     // This is called by the UI when the user clicks accept or decline
     public void respond(String transferId, boolean accepted) {
         Transfer transfer = transfers.get(transferId);
-        if (transfer != null) {
-            transfer.getDecision().complete(accepted);
-        }
+        if (transfer == null) throw new NotFoundException("Unknown transfer: " + transferId);
+        if (transfer.getState() != TransferState.PENDING) throw new IllegalStateException("The transfer: " + transferId + " has expired");
+        transfer.getDecision().complete(accepted);
     }
 
     public void receiveFile(String transferId, MultipartFile file) {
@@ -168,7 +174,7 @@ public class TransferService {
             }
             transfer.addBytes(file.getSize());
             transfer.setState(TransferState.COMPLETE);
-        } catch (IOException e) {
+        } catch (Exception e) {
             transfer.setState(TransferState.FAILED);
             throw new RuntimeException("Failed to write incoming file", e);
         }
@@ -184,7 +190,7 @@ public class TransferService {
 
     public TransferView getTransfer(String transferId) {
         Transfer t = transfers.get(transferId);
-        if (t == null) throw new IllegalStateException("Unknown transfer: " + transferId);
+        if (t == null) throw new NotFoundException("Unknown transfer: " + transferId);
         return toView(t);
     }
 
@@ -192,9 +198,9 @@ public class TransferService {
 
     private Transfer requireAccepted(String transferId){
         Transfer t = transfers.get(transferId);
-        if (t==null || t.getState() != TransferState.ACCEPTED){
-            throw new IllegalStateException("Transfer not ready: " + transferId);
-        }
+        if (t == null) throw new NotFoundException("Unknown transfer: " + transferId);
+        if (t.getState() != TransferState.ACCEPTED)
+            throw new IllegalStateException("Transfer not ready: " + transferId + " is " + t.getState());
         return t;
     }
 
@@ -206,9 +212,7 @@ public class TransferService {
 
     private PeerInfo requirePeer(String deviceId){
         PeerInfo peer = discovery.getPeerInfo(deviceId);
-        if (peer == null){
-            throw new IllegalStateException("Peer not found: " + deviceId);
-        }
+        if (peer == null) throw new NotFoundException("Peer not found: " + deviceId);
         return peer;
     }
 
@@ -227,7 +231,7 @@ public class TransferService {
         transfers.values().removeIf(t -> 
             switch (t.getState()) {
                 case COMPLETE, DECLINED, FAILED -> Instant.parse(t.getCreatedAt()).isBefore(cutoff);
-                default -> false;
+                default -> Instant.parse(t.getCreatedAt()).isBefore(Instant.now().minus(Duration.ofHours(1)));
             }
         );
     }
